@@ -1,17 +1,16 @@
 
-fun! Init()
+fun! s:Init()
 
-	" If '<' is pressed, autocomplete closing tag and move cursor within tag
-	exec "au Filetype html inoremap <lt> <lt>><left"
+	" If '<' is pressed, autocomplete closing tag and move cursor within tag	
+	autocmd BufNewFile,BufRead *.html inoremap <lt> <lt>><left>
 
 	" If <Tab> is pressed, go to handling function
-	exec "au Filetype html inoremap <Tab> <Esc>:call <SID>OnTabPress()"
+	exec "au Filetype html inoremap <silent> <Tab> <Esc>:call <SID>OnTabPress()<Cr>"
 
 	" If <Return> is prssed, go to handing function
-	exec "au filetype html inoremap <Return> <Esc>:call <SID>OnReturnPress()"	
+	exec "au filetype html inoremap <silent> <Return> <Esc>:call <SID>OnReturnPress()<Cr>"	
 
 endf
-
 
 fun! s:InsideOpenTag()
 	" Returns 1 if the cursor is between two carrots ('<>'), 0 if not.
@@ -26,8 +25,8 @@ endf
 fun! s:GetTag()
 	" Returns the text within the opening HTML tag, only up to the first space,
 	" ignoring any attributes that follow.
-	let l:text = matchstr(getline(search("<.>")), "<.>")
-	retu split(l:text)[0]
+	let l:element = getline('.')[1:-2]
+	retu split(l:element)[0]
 endf
 
 
@@ -59,9 +58,11 @@ fun! s:OnTabPress()
 
 	" Check to see if we are inside of an opening tag
 	if s:InsideOpenTag()
+		echo "InsideOpenTag()"
 
 		" Read the HTML tagname that is inside of the opening element
-		l:tagname = s:GetTag()
+		let l:tagname = s:GetTag()
+		echo l:tagname
 
 		if s:IsValidTag(l:tagname)
 
@@ -83,9 +84,11 @@ endf
 
 
 fun OnReturnPress()
+	echo "presed return"
 	if s:BetweenTags()
 		" Enter two newlines and indent between tags
-
+	el
+		exec "i<CR>"
 	en
 endf
 
