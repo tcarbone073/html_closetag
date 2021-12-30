@@ -153,7 +153,7 @@ fun s:OnReturnPress()
 	el
 		" Return was pressed outside of an HTML element. Proceed as normal.
 		if s:debug | echom "Cursor not between tags." | en
-		exec "normal! i\<Cr>"
+		exec "normal! a\<Cr>"
 		startinsert
 	en
 endf
