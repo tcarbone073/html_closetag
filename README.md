@@ -25,11 +25,17 @@ Hit `Enter`, and you will get
 </head>
 ```
 
-## Attributes are ignored
+## Snap out of quotes
+```vim
+<a href="someurl|">
+```
+Hit `Tab`, and you will get
 ```vim
 <a href="someurl"|>
 ```
-Hit `Tab`, and you will get
+
+## Attributes are ignored
+Hit `Tab` again, and you will get
 ```vim
 <a href="someurl">|</a>
 ```
