@@ -14,8 +14,8 @@ fun! s:Init()
 
 endf
 
-fun! s:InsideOpenTag()
-	" Returns 1 if the cursor is between two carrots ('<>'), 0 if not.
+fun! s:AtEndOfOpenTag()
+	" Returns 1 if the cursor is at the end of an opening HTML tag, 0 if not.
 	
 	" Note, because we entered '<Esc>' before the function call (i.e., exiting
 	" insert mode), the cursor was moved left one column. So we actually need
@@ -107,8 +107,8 @@ endf
 fun! s:OnTabPress()
 	" Binded to <Tab> in s:Init()
 
-	" Check to see if we are inside of an opening tag
-	if s:InsideOpenTag()
+	" Check to see if we are ready to write the corresponding closing HTML tag
+	if s:AtEndOfOpenTag()
 		if s:debug | echom "Inside of open tag." | en
 
 		" Read the HTML tagname that is inside of the opening element
