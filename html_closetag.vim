@@ -1,5 +1,5 @@
 " Global flag to toggle debug mode (i.e., echoing variables)
-let s:debug = 1
+let s:debug = 0
 
 fun! s:Init()
 
