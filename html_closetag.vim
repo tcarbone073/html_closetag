@@ -104,6 +104,31 @@ fun! s:BetweenTags()
 endf
 
 
+fun! s:SnapOutOfQuote()
+	" Move the cursor one column right and enter insert mode.
+	
+	if col(".") == col("$")-1
+		startinsert!
+	el
+		exec "normal! la"
+		startinsert
+	en
+endf
+
+
+fun! s:InsertRegularTab()
+	" Insert regular tab and enter insert mode.
+	
+	if col(".") == col("$")-1
+		exec "normal! a\<Tab>"
+		startinsert!
+	el
+		exec "normal! i\<Tab>\<Right>"
+		startinsert
+	en
+endf
+
+
 fun! s:OnTabPress()
 	" Binded to <Tab> in s:Init()
 
@@ -133,10 +158,25 @@ fun! s:OnTabPress()
 			" todo - raise error is not a valid HTML tag
 		en	
 	el
-		" Tab was pressed outside of an HTML element. Proceed as normal.
+
+		" Tab was pressed, but we are not ready to close the HTML element.
 		if s:debug | echom "Not inside of open tag." | en
-		exec "normal! la\<Tab>"
-		startinsert
+
+		" Move cursor one column right and check to see if we are on a single
+		" or double quote.
+		exec "normal! l"
+		if search('\%#[''"]', 'n')
+
+			" If we are on a single or double quote, move the cursor one column
+			" to the right of the quote and enter insert mode.
+			if s:debug | echom "At endquote" | en
+			call s:SnapOutOfQuote()
+		el
+
+			" If we are not on a single or double quote, insert a regular tab.
+			if s:debug | echom "Not at endquote" | en
+			call s:InsertRegularTab()
+		en
 	en
 endf
 
