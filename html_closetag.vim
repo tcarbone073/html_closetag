@@ -4,7 +4,7 @@ let s:debug = 0
 fun! s:Init()
 
 	" If '<' is pressed, autocomplete closing tag and move cursor within tag	
-	autocmd BufNewFile,BufRead *.html inoremap <lt> <lt>><left>
+	au Filetype html inoremap <silent> <lt> <lt><Esc>:call <SID>OnLessThanPress()<Cr>
 
 	" If <Tab> is pressed, go to handling function
 	au Filetype html inoremap <silent> <Tab> <Esc>:call <SID>OnTabPress()<Cr>
@@ -13,6 +13,24 @@ fun! s:Init()
 	au filetype html inoremap <silent> <Cr> <Esc>:call <SID>OnReturnPress()<Cr>
 
 endf
+
+
+fun! s:GetStartOfLessThan()
+	" Returns the 1-based column index of where the 'less than' ('<') is.
+	
+	retu getpos('.')[2]
+endf
+
+
+fun! s:WriteGreaterThan()
+	" Write a 'greater than' ('>') character immediately after the opening
+	" 'less than' ('<') character, move the cursor left one column, and enter
+	" insert mode.
+	
+	exec "normal! a>"
+	startinsert
+endf
+
 
 fun! s:AtEndOfOpenTag()
 	" Returns 1 if the cursor is at the end of an opening HTML tag, 0 if not.
@@ -36,14 +54,16 @@ fun! s:GetTag()
 	let l:line = getline('.')
 	if s:debug | echom "Line is: '" . l:line . "'" | en
 	
-	" Get the 0-based indices of the start and end of the entire string that is
-	" between the carrots ('<>').
-	let l:start = stridx(l:line, "<")+1
-	let l:end = stridx(l:line, ">")-1
-	if s:debug | echom "Tag start/end is: '" . l:start . "/" . l:end . "'" | en
+	" The 1-based index of the character '>'.
+	let l:end = getpos('.')[2]+1
+	if s:debug | echom "<,> are at cols: '" . s:start . "," . l:end . "'" | en
 
-	" Get the string that is between the carrots ('<>')
-	let l:element = strpart(l:line, l:start, l:end - l:start + 1)
+	" Get the string that is between the carrots ('<>'). Note here that
+	" `strpart` is indexing `l:line` on a 0-based index. The value of `s:start`
+	" and `l:end` are column values (which start at 1), corrsponding to the
+	" column positions of '<' and '>'. This is convenient for `s:start` because
+	" we want to start parsing one column right of '<'.
+	let l:element = strpart(l:line, s:start, l:end - s:start - 1)
 	if s:debug | echom "Element is: '" . l:element . "'" | en
 
 	" Ignore the HTML attribute (e.g., <a href=...>)
@@ -126,6 +146,19 @@ fun! s:InsertRegularTab()
 		exec "normal! i\<Tab>\<Right>"
 		startinsert
 	en
+endf
+
+
+fun! s:OnLessThanPress()
+	" Called when 'less than' ('<') is pressed.
+	
+	" Retain the starting position of the opening 'less than' ('<') character.
+	let s:start = s:GetStartOfLessThan()
+	if s:debug | echom "Start of '<' is: " . s:start | en
+	
+	" Write the closing 'greater than' ('>') character.
+	call s:WriteGreaterThan()
+
 endf
 
 
