@@ -1,5 +1,5 @@
 " Global flag to toggle debug mode (i.e., echoing variables)
-let s:debug = 0
+let s:debug = 1
 
 fun! s:Init()
 
@@ -148,7 +148,7 @@ endf
 
 fun! s:AtEndOfInnerHTML()
 	" Return 1 if the cursor is at the end of any inner HTML, 0 if not.
-	
+
 	if col(".") == col("$")-1
 		exec "normal! j^"
 	en
@@ -159,31 +159,11 @@ fun! s:AtEndOfInnerHTML()
 	" reason this is what works? Myabe it has to do with the fact that vim
 	" highlights the opening a closing characters when the cursor is on them?
 	if getline('.')[col('.')-1] == '<' && getline('.')[col('.')] == '/'
+
 		retu 1
 	el
 		retu 0
 	en
-endf
-
-
-fun! s:SnapOutOfInnerHTML()
-	" Move the cursor one column right of the adjacent closing HTML tag and
-	" enter insert mode.
-	
-	let l:start_idx = getpos('.')[2]-1
-	if s:debug | echom "  Index of closing '<' is: " . l:start_idx | en
-		
-	let l:end_idx = stridx(getline('.'), '>', l:start_idx) 
-	if s:debug | echom "  Index of closing '>' is: " . l:end_idx | en
-
-	let l:closing_tag_len = l:end_idx - l:start_idx + 1
-
-	let l:end_pos = getpos('.')
-	let l:end_pos[2] = l:end_pos[2] + l:closing_tag_len
-
-	call setpos('.', l:end_pos)
-
-	if col(".") == col("$")-1 | startinsert! | el | startinsert | en
 endf
 
 
