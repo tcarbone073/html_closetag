@@ -1,5 +1,5 @@
 " Global flag to toggle debug mode (i.e., echoing variables)
-let s:debug = 0
+let s:debug = 1
 
 fun! s:Init()
 
@@ -32,6 +32,16 @@ fun! s:WriteGreaterThan()
 endf
 
 
+fun! s:AtEndQuote()
+	" Returns 1 if the cursor is at a closing single or double quote, 0 if not.
+	
+	" Move cursor one column right and check to see if we are on a single
+	" or double quote.
+	exec "normal! l"
+	if search('\%#[''"]', 'n') | retu 1 | el | retu 0 | en
+endf
+
+
 fun! s:AtEndOfOpenTag()
 	" Returns 1 if the cursor is at the end of an opening HTML tag, 0 if not.
 	
@@ -52,11 +62,11 @@ fun! s:GetTag()
 	
 	" Get the entire current line.
 	let l:line = getline('.')
-	if s:debug | echom "Line is: '" . l:line . "'" | en
+	if s:debug | echom "  Line is: '" . l:line . "'" | en
 	
 	" The 1-based index of the character '>'.
 	let l:end = getpos('.')[2]+1
-	if s:debug | echom "<,> are at cols: '" . s:start . "," . l:end . "'" | en
+	if s:debug | echom "  '<','>' are at cols: " . s:start . "," . l:end | en
 
 	" Get the string that is between the carrots ('<>'). Note here that
 	" `strpart` is indexing `l:line` on a 0-based index. The value of `s:start`
@@ -64,7 +74,7 @@ fun! s:GetTag()
 	" column positions of '<' and '>'. This is convenient for `s:start` because
 	" we want to start parsing one column right of '<'.
 	let l:element = strpart(l:line, s:start, l:end - s:start - 1)
-	if s:debug | echom "Element is: '" . l:element . "'" | en
+	if s:debug | echom "  Text between '<>' is: '" . l:element . "'" | en
 
 	" Ignore the HTML attribute (e.g., <a href=...>)
 	let l:tagname = split(l:element)[0]
@@ -136,6 +146,22 @@ fun! s:SnapOutOfQuote()
 endf
 
 
+fun! s:AtEndOfInnerHTML()
+	" Return 1 if the cursor is at the end of any inner HTML, 0 if not.
+
+	" This line shouldn't work?  Becuase we hit <Esc> before calling this
+	" function, the cursor should be one column left of the '<' character, so
+	" the logical check is `if getline('.')[col('.')] == '<'`... but for some
+	" reason this is what works? Myabe it has to do with the fact that vim
+	" highlights the opening a closing characters when the cursor is on them?
+	if getline('.')[col('.')-1] == '<' && getline('.')[col('.')] == '/'
+		retu 1
+	el
+		retu 0
+	en
+endf
+
+
 fun! s:InsertRegularTab()
 	" Insert regular tab and enter insert mode.
 	
@@ -150,11 +176,11 @@ endf
 
 
 fun! s:OnLessThanPress()
-	" Called when 'less than' ('<') is pressed.
-	
+	if s:debug | echom "<lt> Pressed..." | en
+
 	" Retain the starting position of the opening 'less than' ('<') character.
 	let s:start = s:GetStartOfLessThan()
-	if s:debug | echom "Start of '<' is: " . s:start | en
+	if s:debug | echom " Start of '<' is: " . s:start | en
 	
 	" Write the closing 'greater than' ('>') character.
 	call s:WriteGreaterThan()
@@ -163,69 +189,68 @@ endf
 
 
 fun! s:OnTabPress()
-	" Binded to <Tab> in s:Init()
+	if s:debug | echom "<Tab> Pressed..." | en
 
 	" Check to see if we are ready to write the corresponding closing HTML tag
 	if s:AtEndOfOpenTag()
-		if s:debug | echom "Inside of open tag." | en
+		if s:debug | echom " Case 1: At end of opening HTML tag." | en
 
 		" Read the HTML tagname that is inside of the opening element
 		let l:tagname = s:GetTag()
-		if s:debug | echom "Tag is: '" . l:tagname . "'" | en
+		if s:debug | echom "  Tag is: '" . l:tagname . "'" | en
 
 		if s:IsValidTag(l:tagname)
-			if s:debug | echom "Tag is valid." | en
+			if s:debug | echom "  Tag is valid." | en
 
 			if s:IsPairedTag(l:tagname)
-				if s:debug | echom "Tag is paired." | en
+				if s:debug | echom "  Tag is paired." | en
 
 				" Write the closing tag and move cursor between tags
 				call s:WriteClosingTag(l:tagname)
 			el
-				if s:debug | echom "Tag is not paired." | en
+				if s:debug | echom "  Tag is not paired." | en
 				" Move cursor outside of the tag
 				startinsert!
 			en
 		el
-			if s:debug | echom "Tag is not valid." | en
+			if s:debug | echom "  Tag is not valid." | en
 			" todo - raise error is not a valid HTML tag
 		en	
+
+
+	elseif s:AtEndQuote()
+
+		" The cursor is resting on an ending single or double quote.
+		if s:debug | echom " Case 2: At endquote." | en
+		call s:SnapOutOfQuote()
+
+	elseif s:AtEndOfInnerHTML()
+
+		" The cursor is resting at the end of any inner HTML.
+		if s:debug | echom " Case 3: At end of inner HTML" | en
+
 	el
-
-		" Tab was pressed, but we are not ready to close the HTML element.
-		if s:debug | echom "Not inside of open tag." | en
-
-		" Move cursor one column right and check to see if we are on a single
-		" or double quote.
-		exec "normal! l"
-		if search('\%#[''"]', 'n')
-
-			" If we are on a single or double quote, move the cursor one column
-			" to the right of the quote and enter insert mode.
-			if s:debug | echom "At endquote" | en
-			call s:SnapOutOfQuote()
-		el
-
-			" If we are not on a single or double quote, insert a regular tab.
-			if s:debug | echom "Not at endquote" | en
-			call s:InsertRegularTab()
-		en
+		
+		" The cursor is not at the end of an opening HTML tag, not at en
+		" endquote, and not at the end of any inner HTML.
+		if s:debug | echom " Case 4: Regular tab." | en
+		call s:InsertRegularTab()
 	en
 endf
 
 
 fun s:OnReturnPress()
-	" Binded to <Cr> in s:Init()
+	if s:debug | echom "<Cr> Pressed..." | en
 
 	if s:BetweenTags()
 		" If we are between two HTML tags, insert two carriage returns and
 		" indent one layer in the blank space between the tags.
-		if s:debug | echom "Cursor between tags." | en
+		if s:debug | echom " Case 1: Cursor between HTML tags." | en
 		exec "normal! li\<Cr>\<Tab>\<Cr>\<Esc>k"
 		startinsert!
 	el
 		" Return was pressed outside of an HTML element. Proceed as normal.
-		if s:debug | echom "Cursor not between tags." | en
+		if s:debug | echom " Case 2: Regular carriage return." | en
 		exec "normal! a\<Cr>"
 		startinsert
 	en
