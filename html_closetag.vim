@@ -14,6 +14,65 @@ fun! s:Init()
 
 endf
 
+" These checks run when <Tab> is pressed ---------------------------------- {{{
+
+" For all of these checks, be mindful that before calling main handling
+" function when a <Tab> is pressed, <Esc> was entered. Unless the cursor is at
+" column 1, the cursor will move left one column. So, some of the logic here is
+" checking if a character exists some amount of columns to the right of the
+" cursor.
+"
+" All of these functions return with the cursor in the same spot as when they
+" were entered to prevent bugs down the line.
+
+fun! s:AtEndOfOpenTag()
+	" Returns 1 if the cursor is at the end of an opening HTML tag, 0 if not.
+	
+	if getline('.')[col('.')] == '>' | retu 1 | el | retu 0 | en
+endf
+
+
+fun! s:AtEndQuote()
+	" Returns 1 if cursor is at a closing single or double quote, 0 if not.
+	"
+	if getline('.')[col('.')] == '''' || getline('.')[col('.')] == '"'
+		retu 1
+	el
+		retu 0
+	en
+endf
+
+
+fun! s:AtEndOfInnerHTML()
+	" Return 1 if cursor is at the end of any inner HTML, 0 if not.
+	"
+	" Ex: Returns 1 for the following situations:
+	" 	<sometag>foo|</sometag>
+	" 	-OR-
+	" 	<sometag>
+	" 		foo|  <-- only returns 1 if cursor is at end of line
+	" 	</sometag>
+	
+	let l:thisline = getline('.')
+	let l:nextline = getline(line('.')+1)
+	
+	" Check if next two chracters are '</'
+	if strpart(l:thisline, col('.'), 2) == '</'
+		retu 1
+
+	" Check if first two non-blank characters on next line are '</'
+	elseif col('.') == col('$')-1 
+		if strpart(l:nextline, match(l:nextline, '\S'), 2) == '</'
+			retu 1
+		el
+			retu 0
+		en
+	el
+		retu 0
+	en
+endf
+" }}}
+
 
 fun! s:GetStartOfLessThan()
 	" Returns the 1-based column index of where the 'less than' ('<') is.
@@ -29,27 +88,6 @@ fun! s:WriteGreaterThan()
 	
 	exec "normal! a>"
 	startinsert
-endf
-
-
-fun! s:AtEndQuote()
-	" Returns 1 if the cursor is at a closing single or double quote, 0 if not.
-	
-	" Move cursor one column right and check to see if we are on a single
-	" or double quote.
-	exec "normal! l"
-	if search('\%#[''"]', 'n') | retu 1 | el | retu 0 | en
-endf
-
-
-fun! s:AtEndOfOpenTag()
-	" Returns 1 if the cursor is at the end of an opening HTML tag, 0 if not.
-	
-	" Note, because we entered '<Esc>' before the function call (i.e., exiting
-	" insert mode), the cursor was moved left one column. So we actually need
-	" to check if the cursor is one position to the left of the closing carrot
-	" ('>').
-	if getline('.')[col('.')] == '>' | retu 1 | el | retu 0 | en
 endf
 
 
@@ -137,7 +175,23 @@ endf
 fun! s:SnapOutOfQuote()
 	" Move the cursor one column right and enter insert mode.
 	
-	if col(".") == col("$")-1
+	if col(".") == col("$")-2
+		if s:debug | echom "  At end of line" | en
+		startinsert!
+	el
+		if s:debug | echom "  Not at end of line" | en
+		exec "normal! lla"
+		startinsert
+	en
+endf
+
+
+fun! s:SnapOutOfInnerHTML()
+	" Move the cursor one column right of the nearest closing HTML tag and
+	" enter insert mode
+	
+	let l:linenum = search('>', 'ze')
+	if col('.') == col('$')-1
 		startinsert!
 	el
 		exec "normal! la"
@@ -146,55 +200,28 @@ fun! s:SnapOutOfQuote()
 endf
 
 
-fun! s:AtEndOfInnerHTML()
-	" Return 1 if the cursor is at the end of any inner HTML, 0 if not.
-	
-	if col(".") == col("$")-1
-		exec "normal! j^"
-	en
-
-	" This line shouldn't work?  Becuase we hit <Esc> before calling this
-	" function, the cursor should be one column left of the '<' character, so
-	" the logical check is `if getline('.')[col('.')] == '<'`... but for some
-	" reason this is what works? Myabe it has to do with the fact that vim
-	" highlights the opening a closing characters when the cursor is on them?
-	if getline('.')[col('.')-1] == '<' && getline('.')[col('.')] == '/'
-		retu 1
-	el
-		retu 0
-	en
-endf
-
-
-fun! s:SnapOutOfInnerHTML()
-	" Move the cursor one column right of the adjacent closing HTML tag and
-	" enter insert mode.
-	
-	let l:start_idx = getpos('.')[2]-1
-	if s:debug | echom "  Index of closing '<' is: " . l:start_idx | en
-		
-	let l:end_idx = stridx(getline('.'), '>', l:start_idx) 
-	if s:debug | echom "  Index of closing '>' is: " . l:end_idx | en
-
-	let l:closing_tag_len = l:end_idx - l:start_idx + 1
-
-	let l:end_pos = getpos('.')
-	let l:end_pos[2] = l:end_pos[2] + l:closing_tag_len
-
-	call setpos('.', l:end_pos)
-
-	if col(".") == col("$")-1 | startinsert! | el | startinsert | en
-endf
-
-
 fun! s:InsertRegularTab()
 	" Insert regular tab and enter insert mode.
 	
-	if col(".") == col("$")-1
+	if col('.') == col('$')
+		exec "normal! i\<Tab>"
+		startinsert!
+
+	elseif col(".") == col("$")-1
 		exec "normal! a\<Tab>"
 		startinsert!
-	el
+
+	elseif getline('.')[col('.')-1] == "\t"
+		exec "normal! a\<Tab>\<Right>"
+		startinsert
+
+	elseif col('.') == 1
 		exec "normal! i\<Tab>\<Right>"
+		startinsert
+
+
+	el
+		exec "normal! a\<Tab>\<Right>"
 		startinsert
 	en
 endf
@@ -215,6 +242,9 @@ endf
 
 fun! s:OnTabPress()
 	if s:debug | echom "<Tab> Pressed..." | en
+
+	" All of these checks exit with the cursor in the same position as when
+	" they were entered.
 
 	" Check to see if we are ready to write the corresponding closing HTML tag
 	if s:AtEndOfOpenTag()
