@@ -74,13 +74,6 @@ endf
 " }}}
 
 
-fun! s:GetStartOfLessThan()
-	" Returns the 1-based column index of where the 'less than' ('<') is.
-	
-	retu getpos('.')[2]
-endf
-
-
 fun! s:WriteGreaterThan()
 	" Write a 'greater than' ('>') character immediately after the opening
 	" 'less than' ('<') character, move the cursor left one column, and enter
@@ -101,17 +94,18 @@ fun! s:GetTag()
 	" Get the entire current line.
 	let l:line = getline('.')
 	if s:debug | echom "  Line is: '" . l:line . "'" | en
-	
-	" The 1-based index of the character '>'.
-	let l:end = getpos('.')[2]+1
-	if s:debug | echom "  '<','>' are at cols: " . s:start . "," . l:end | en
+
+	" Get columns of the opening and closing carrots '<>' of the opening tag
+	let [@_, l:start] = searchpos('<', 'bn')
+	let [@_, l:end] = searchpos('>', 'n')	
+	if s:debug | echom "  '<','>' are at cols: " . l:start . "," . l:end | en
 
 	" Get the string that is between the carrots ('<>'). Note here that
 	" `strpart` is indexing `l:line` on a 0-based index. The value of `s:start`
 	" and `l:end` are column values (which start at 1), corrsponding to the
 	" column positions of '<' and '>'. This is convenient for `s:start` because
 	" we want to start parsing one column right of '<'.
-	let l:element = strpart(l:line, s:start, l:end - s:start - 1)
+	let l:element = strpart(l:line, l:start, l:end - l:start - 1)
 	if s:debug | echom "  Text between '<>' is: '" . l:element . "'" | en
 
 	" Ignore the HTML attribute (e.g., <a href=...>)
@@ -219,7 +213,6 @@ fun! s:InsertRegularTab()
 		exec "normal! i\<Tab>\<Right>"
 		startinsert
 
-
 	el
 		exec "normal! a\<Tab>\<Right>"
 		startinsert
@@ -230,10 +223,6 @@ endf
 fun! s:OnLessThanPress()
 	if s:debug | echom "<lt> Pressed..." | en
 
-	" Retain the starting position of the opening 'less than' ('<') character.
-	let s:start = s:GetStartOfLessThan()
-	if s:debug | echom " Start of '<' is: " . s:start | en
-	
 	" Write the closing 'greater than' ('>') character.
 	call s:WriteGreaterThan()
 
