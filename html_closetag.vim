@@ -142,7 +142,7 @@ fun! s:WriteClosingTag(tagname)
 	let l:cursor_save_pos[2] = l:cursor_save_pos[2]+2
 
 	" Write the closing tag.
-	exec "normal! A</" . a:tagname . ">"
+	exec "normal! la</" . a:tagname . ">"
 
 	" Go to the return position and enter insert mode.
 	call setpos('.', l:cursor_save_pos)
